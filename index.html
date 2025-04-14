@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Cooking Journal</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="site-title">Home Cooking Journal</h1>
+            <p class="site-description">Documenting delicious moments from my kitchen</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="welcome-section">
+            <h2>Welcome to My Cooking Journal</h2>
+            <p>This is where I document all my culinary adventures and recipes. Each entry captures the joy, challenges, and flavors of home cooking. Browse through my recipes or add a new one to start building this delicious collection.</p>
+            <div class="cta-buttons">
+                <a href="#recipes" class="btn primary-btn">View Recipes</a>
+                <a href="add-recipe.html" class="btn secondary-btn">Add New Recipe</a>
+            </div>
+        </section>
+
+        <section id="recipes" class="recipes-section">
+            <h2>My Recipes</h2>
+            <div class="recipe-filter">
+                <input type="text" id="searchBox" placeholder="Search recipes...">
+                <select id="sortOptions">
+                    <option value="date-desc">Newest First</option>
+                    <option value="date-asc">Oldest First</option>
+                    <option value="rating-desc">Highest Rated</option>
+                    <option value="rating-asc">Lowest Rated</option>
+                </select>
+            </div>
+            <div id="recipesList" class="recipes-grid">
+                <!-- Recipe entries will be loaded here dynamically -->
+                <div class="recipe-card empty-state">
+                    <p>No recipes added yet. Click "Add New Recipe" to create your first entry!</p>
+                </div>
+            </div>
+            <div class="pagination" id="pagination">
+                <!-- Pagination controls will be added here if needed -->
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; <span id="current-year"></span> Home Cooking Journal</p>
+        </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html> 
