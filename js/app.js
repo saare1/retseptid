@@ -10,6 +10,14 @@ currentYear.textContent = new Date().getFullYear();
 
 // Recipe data will be stored in localStorage
 const STORAGE_KEY = 'mom_recipes';
+// Maximum image size (in pixels) for storage
+const MAX_IMAGE_WIDTH = 800;
+const MAX_IMAGE_HEIGHT = 800;
+// JPEG Quality (0-1)
+const IMAGE_QUALITY = 0.7;
+// Maximum number of high-res images per recipe
+const MAX_IMAGES_PER_RECIPE = 3;
+
 let recipes = [];
 let currentPage = 1;
 const recipesPerPage = 6;
