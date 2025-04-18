@@ -142,7 +142,7 @@ function displayRecipes() {
     if (filteredRecipes.length === 0) {
         recipesList.innerHTML = `
             <div class="recipe-card empty-state">
-                <p>${searchText ? 'No recipes match your search.' : 'No recipes added yet. Click "Add New Recipe" to create your first entry!'}</p>
+                <p>${searchText ? 'No recipes match your search.' : 'Retsepte pole veel lisatud. Esimese sissekande loomiseks klõpsake "Lisa uus retsept"!'}</p>
             </div>
         `;
     } else {
@@ -620,13 +620,13 @@ function displayRecipeDetails(recipeId) {
         
         <div class="recipe-content">
             <div class="recipe-section">
-                <h3>Instructions</h3>
+                <h3>Juhised</h3>
                 <div class="recipe-instructions">${recipe.instructions}</div>
             </div>
             
             ${recipe.notes ? `
                 <div class="recipe-section">
-                    <h3>Personal Notes</h3>
+                    <h3>Isiklikud märkmed</h3>
                     <div class="recipe-notes">${recipe.notes}</div>
                 </div>
             ` : ''}
