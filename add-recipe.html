@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Add New Recipe - Home Cooking Journal</title>
+    <title>Lisa uus retsept - Retseptid</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,64 +12,64 @@
 <body class="add-recipe-page">
     <header>
         <div class="container">
-            <h1 class="site-title">Home Cooking Journal</h1>
-            <p class="site-description">Documenting delicious moments from my kitchen</p>
+            <h1 class="site-title">Retseptid</h1>
+            <p class="site-description">Siin dokumenteerin ma kõiki oma retsepte.</p>
         </div>
     </header>
 
     <main class="container">
         <section class="recipe-form-section">
             <div class="page-heading">
-                <h2>Add New Recipe</h2>
+                <h2>Lisa uus retsept</h2>
                 <a href="index.html" class="back-link"><i class="fas fa-arrow-left"></i> Back to Home</a>
             </div>
             
             <form id="recipeForm" class="recipe-form">
                 <div class="form-group">
-                    <label for="recipeTitle">Recipe Title</label>
+                    <label for="recipeTitle">Retsepti nimi</label>
                     <input type="text" id="recipeTitle" name="title" autocomplete="off" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="recipeDate">Date</label>
+                    <label for="recipeDate">Kuupäev</label>
                     <input type="date" id="recipeDate" name="date" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="recipeRating">Rating</label>
+                    <label for="recipeRating">Reiting</label>
                     <div class="star-rating">
                         <i class="far fa-star" data-rating="1"></i>
                         <i class="far fa-star" data-rating="2"></i>
                         <i class="far fa-star" data-rating="3"></i>
                         <i class="far fa-star" data-rating="4"></i>
                         <i class="far fa-star" data-rating="5"></i>
-                        <input type="hidden" id="recipeRating" name="rating" value="0">
+                        <input type="hidden" id="recipeRating" name="Reiting" value="0">
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="recipeInstructions">Recipe Instructions</label>
+                    <label for="recipeInstructions">Retsepti juhised</label>
                     <textarea id="recipeInstructions" name="instructions" rows="10" required></textarea>
                 </div>
                 
                 <div class="form-group">
-                    <label for="recipeNotes">Personal Notes</label>
+                    <label for="recipeNotes">Isiklikud märkmed</label>
                     <textarea id="recipeNotes" name="notes" rows="5"></textarea>
                 </div>
                 
                 <div class="form-group">
-                    <label for="recipeImages">Photos</label>
+                    <label for="recipeImages">Pildid</label>
                     <div class="image-upload-container">
                         <div class="image-preview-area" id="imagePreviewArea">
-                            <p class="upload-instruction">Tap to add photos</p>
+                            <p class="upload-instruction">Piltide lisamiseks vajutage nuppu</p>
                         </div>
                         <input type="file" id="recipeImages" name="images" accept="image/*" multiple class="hidden-file-input">
                     </div>
                 </div>
                 
                 <div class="form-actions">
-                    <button type="submit" class="btn primary-btn" id="saveRecipeBtn">Save Recipe</button>
-                    <button type="button" id="cancelBtn" class="btn secondary-btn">Cancel</button>
+                    <button type="submit" class="btn primary-btn" id="saveRecipeBtn">Salvesta Retsept</button>
+                    <button type="button" id="cancelBtn" class="btn secondary-btn">Tühista</button>
                 </div>
             </form>
         </section>
@@ -77,7 +77,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; <span id="current-year"></span> Home Cooking Journal</p>
+            <p>&copy; <span id="current-year"></span> Retseptid</p>
         </div>
     </footer>
 
