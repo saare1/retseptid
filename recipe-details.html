@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Retsepti Detailid - Ema Retseptiraamat</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
+</head>
+<body class="recipe-details-page">
+    <header>
+        <div class="container">
+            <h1 class="site-title">Ema Retseptiraamat</h1>
+            <p class="site-description">Maitsvad mälestused, mis kestavad igavesti</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="recipe-details-section">
+            <div class="page-heading">
+                <a href="index.html" class="back-link">
+                    <i class="fas fa-arrow-left"></i> Tagasi avalehele
+                </a>
+                <div class="recipe-actions">
+                    <button id="editRecipeBtn" class="btn secondary-btn">
+                        <i class="fas fa-edit"></i> Muuda
+                    </button>
+                    <button id="deleteRecipeBtn" class="btn danger-btn">
+                        <i class="fas fa-trash"></i> Kustuta
+                    </button>
+                </div>
+            </div>
+            
+            <div id="recipeDetailsContainer" class="recipe-details-container">
+                <!-- Recipe details will be loaded here dynamically -->
+                <div class="recipe-loading">
+                    <p>Loading recipe...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; <span id="current-year"></span> Ema Retseptiraamat. Kõik õigused kaitstud.</p>
+        </div>
+    </footer>
+
+    <div id="confirmDeleteModal" class="modal">
+        <div class="modal-content">
+            <h3>Kustuta Retsept</h3>
+            <p>Kas oled kindel, et soovid selle retsepti kustutada? Seda tegevust ei saa tagasi võtta.</p>
+            <div class="modal-actions">
+                <button id="cancelDeleteBtn" class="btn secondary-btn">Tühista</button>
+                <button id="confirmDeleteBtn" class="btn danger-btn">Kustuta</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html> 
