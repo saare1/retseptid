@@ -14,12 +14,12 @@ const BACKUP_STORAGE_KEY = 'mom_recipes_backup';
 // Maximum image size (in pixels) for storage
 const MAX_IMAGE_WIDTH = 600;
 const MAX_IMAGE_HEIGHT = 600;
-// JPEG Quality (0-1)
-const IMAGE_QUALITY = 0.5;
+// JPEG Quality (0-1) - Reduced quality for better storage
+const IMAGE_QUALITY = 0.4;
 // Maximum number of high-res images per recipe
 const MAX_IMAGES_PER_RECIPE = 3;
-// Maximum file size in bytes (3MB)
-const MAX_FILE_SIZE = 3 * 1024 * 1024;
+// Maximum file size in bytes (2MB)
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
 // Auto-save interval (in milliseconds)
 const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
 
@@ -31,6 +31,8 @@ let isDirty = false;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
+    // Clear any old storage format
+    clearOldStorage();
     loadRecipes();
     
     // Setup event listeners based on the current page
@@ -63,21 +65,197 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Check available storage space
+// Clear old storage format to free up space
+function clearOldStorage() {
+    try {
+        // List of old keys to remove
+        const oldKeys = [
+            'recipe_draft_backup',
+            'recipes_backup',
+            'temp_images'
+        ];
+        
+        oldKeys.forEach(key => {
+            if (localStorage.getItem(key)) {
+                localStorage.removeItem(key);
+            }
+        });
+    } catch (error) {
+        console.error('Error clearing old storage:', error);
+    }
+}
+
+// Check available storage space with better estimation
 function checkStorageSpace() {
-    let totalSize = 0;
-    for (let key in localStorage) {
-        if (localStorage.hasOwnProperty(key)) {
-            totalSize += localStorage[key].length * 2; // in bytes
+    try {
+        // Get current storage usage
+        let totalSize = 0;
+        for (let key in localStorage) {
+            if (localStorage.hasOwnProperty(key)) {
+                totalSize += localStorage[key].length * 2; // in bytes
+            }
+        }
+
+        // Modern browsers typically allow 5-10MB per domain
+        // We'll use a conservative 10MB estimate
+        const estimatedTotal = 10 * 1024 * 1024; // 10MB in bytes
+        const remainingSpace = estimatedTotal - totalSize;
+        
+        return {
+            used: totalSize / (1024 * 1024), // in MB
+            remaining: remainingSpace / (1024 * 1024), // in MB
+            total: estimatedTotal / (1024 * 1024), // in MB
+            hasEnoughSpace: remainingSpace > 500 * 1024 // at least 500KB remaining
+        };
+    } catch (error) {
+        console.error('Error checking storage space:', error);
+        // Return conservative estimates if we can't check
+        return {
+            used: 0,
+            remaining: 5,
+            total: 5,
+            hasEnoughSpace: true
+        };
+    }
+}
+
+// Optimize image before saving
+async function optimizeImage(imageUrl) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            
+            // Calculate new dimensions while maintaining aspect ratio
+            if (width > MAX_IMAGE_WIDTH || height > MAX_IMAGE_HEIGHT) {
+                const aspectRatio = width / height;
+                if (width > height) {
+                    width = MAX_IMAGE_WIDTH;
+                    height = Math.round(width / aspectRatio);
+                } else {
+                    height = MAX_IMAGE_HEIGHT;
+                    width = Math.round(height * aspectRatio);
+                }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Try progressive compression
+            let quality = IMAGE_QUALITY;
+            let optimizedUrl;
+            
+            do {
+                optimizedUrl = canvas.toDataURL('image/jpeg', quality);
+                quality *= 0.8;
+            } while (optimizedUrl.length > MAX_FILE_SIZE && quality > 0.1);
+            
+            resolve(optimizedUrl);
+        };
+        
+        img.onerror = function() {
+            console.error('Error loading image for optimization');
+            resolve(imageUrl); // Return original if optimization fails
+        };
+        
+        img.src = imageUrl;
+    });
+}
+
+// Modify handleImageUpload to use the optimizeImage function
+async function handleImageUpload(e) {
+    const files = e.target.files;
+    const imagePreviewArea = document.getElementById('imagePreviewArea');
+    
+    if (!files || files.length === 0) return;
+    
+    // Check if adding these would exceed the max
+    const currentImages = imagePreviewArea.querySelectorAll('.image-preview').length;
+    if (currentImages + files.length > MAX_IMAGES_PER_RECIPE) {
+        alert(`Saad lisada maksimaalselt ${MAX_IMAGES_PER_RECIPE} pilti retsepti kohta.`);
+        return;
+    }
+    
+    // Clear upload instruction if present
+    const uploadInstruction = imagePreviewArea.querySelector('.upload-instruction');
+    if (uploadInstruction) {
+        uploadInstruction.remove();
+    }
+    
+    // Show loading indicator
+    const loadingEl = document.createElement('div');
+    loadingEl.classList.add('upload-loading');
+    loadingEl.innerHTML = 'Piltide töötlemine...';
+    imagePreviewArea.appendChild(loadingEl);
+    
+    let processedFiles = 0;
+    let errorCount = 0;
+    
+    for (const file of Array.from(files)) {
+        try {
+            const reader = new FileReader();
+            
+            reader.onload = async function(event) {
+                const imageUrl = event.target.result;
+                const optimizedImageUrl = await optimizeImage(imageUrl);
+                
+                // Create preview element
+                const previewElement = document.createElement('div');
+                previewElement.classList.add('image-preview');
+                previewElement.innerHTML = `
+                    <img src="${optimizedImageUrl}" alt="Retsepti pildi eelvaade">
+                    <div class="remove-image">
+                        <i class="fas fa-times"></i>
+                    </div>
+                `;
+                
+                imagePreviewArea.appendChild(previewElement);
+                
+                // Add remove functionality
+                const removeBtn = previewElement.querySelector('.remove-image');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        previewElement.remove();
+                        
+                        if (imagePreviewArea.querySelectorAll('.image-preview').length === 0) {
+                            imagePreviewArea.innerHTML = `
+                                <p class="upload-instruction">Puuduta piltide lisamiseks</p>
+                            `;
+                        }
+                    });
+                }
+            };
+            
+            reader.onerror = function() {
+                console.error('Error reading file:', file.name);
+                errorCount++;
+            };
+            
+            reader.readAsDataURL(file);
+            
+        } catch (error) {
+            console.error('Error processing file:', error);
+            errorCount++;
+        }
+        
+        processedFiles++;
+        if (processedFiles === files.length) {
+            loadingEl.remove();
+            if (errorCount === files.length) {
+                imagePreviewArea.innerHTML = `
+                    <p class="upload-instruction">Puuduta piltide lisamiseks</p>
+                `;
+            }
         }
     }
-    const remainingSpace = 5 * 1024 * 1024 - totalSize; // Estimate 5MB limit
-    return {
-        used: totalSize / (1024 * 1024), // in MB
-        remaining: remainingSpace / (1024 * 1024), // in MB
-        total: 5, // estimated total in MB
-        hasEnoughSpace: remainingSpace > 100 * 1024 // at least 100KB remaining
-    };
 }
 
 // Load recipes from localStorage
@@ -152,6 +330,169 @@ function saveRecipes() {
             message: error.message
         };
     }
+}
+
+// Save recipe draft
+function saveRecipeAsDraft() {
+    try {
+        const recipeId = new URLSearchParams(window.location.search).get('edit');
+        const formData = {
+            id: recipeId || 'draft_' + Date.now().toString(),
+            title: document.getElementById('recipeTitle').value.trim(),
+            date: document.getElementById('recipeDate').value,
+            rating: parseInt(document.getElementById('recipeRating').value) || 0,
+            instructions: document.getElementById('recipeInstructions').value.trim(),
+            notes: document.getElementById('recipeNotes').value.trim(),
+            images: Array.from(document.querySelectorAll('.image-preview img')).map(img => img.src),
+            isDraft: true,
+            lastModified: new Date().toISOString()
+        };
+
+        localStorage.setItem('recipe_draft', JSON.stringify(formData));
+        return { success: true };
+    } catch (error) {
+        console.error('Error saving draft:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Save a new recipe or update existing one
+function saveRecipe() {
+    try {
+        const saveBtn = document.querySelector('button[type="submit"]');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Salvestamine...';
+        }
+        
+        const recipeId = new URLSearchParams(window.location.search).get('edit');
+        const title = document.getElementById('recipeTitle').value.trim();
+        const date = document.getElementById('recipeDate').value;
+        const rating = parseInt(document.getElementById('recipeRating').value) || 0;
+        const instructions = document.getElementById('recipeInstructions').value.trim();
+        const notes = document.getElementById('recipeNotes').value.trim();
+        
+        // Validation
+        if (!title || !date || !instructions) {
+            alert('Palun täida kõik kohustuslikud väljad');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Salvesta Retsept';
+            }
+            return;
+        }
+        
+        // Get all preview images
+        const imagePreviews = document.querySelectorAll('.image-preview img');
+        const images = Array.from(imagePreviews).map(img => img.src);
+        
+        // Create recipe object
+        const recipe = {
+            id: recipeId || Date.now().toString(),
+            title,
+            date,
+            rating,
+            instructions,
+            notes,
+            images,
+            created: recipeId ? (recipes.find(r => r.id === recipeId)?.created || new Date().toISOString()) : new Date().toISOString(),
+            modified: new Date().toISOString()
+        };
+        
+        loadRecipes();
+        
+        if (recipeId) {
+            // Update existing recipe
+            const index = recipes.findIndex(r => r.id === recipeId);
+            if (index !== -1) {
+                recipes[index] = recipe;
+            } else {
+                recipes.push(recipe);
+            }
+        } else {
+            // Add new recipe
+            recipes.push(recipe);
+        }
+        
+        const saveResult = saveRecipes();
+        
+        if (saveResult.success) {
+            window.location.href = 'recipe-details.html?id=' + recipe.id;
+        } else {
+            if (saveResult.error === 'storage_full') {
+                const confirmDownsize = confirm(
+                    'Mäluruum on täis. Kas soovid salvestada vähemate piltidega? ' +
+                    'Ainult esimene pilt säilitatakse.'
+                );
+                
+                if (confirmDownsize) {
+                    recipe.images = images.length > 0 ? [images[0]] : [];
+                    
+                    if (recipeId) {
+                        const index = recipes.findIndex(r => r.id === recipeId);
+                        if (index !== -1) {
+                            recipes[index] = recipe;
+                        } else {
+                            recipes.push(recipe);
+                        }
+                    } else {
+                        recipes.push(recipe);
+                    }
+                    
+                    const retryResult = saveRecipes();
+                    
+                    if (retryResult.success) {
+                        window.location.href = 'recipe-details.html?id=' + recipe.id;
+                    } else {
+                        recipe.images = [];
+                        
+                        if (recipeId) {
+                            const index = recipes.findIndex(r => r.id === recipeId);
+                            if (index !== -1) {
+                                recipes[index] = recipe;
+                            } else {
+                                recipes.push(recipe);
+                            }
+                        } else {
+                            recipes.push(recipe);
+                        }
+                        
+                        const finalAttempt = saveRecipes();
+                        
+                        if (finalAttempt.success) {
+                            alert('Retsept salvestati ilma piltideta mäluruumi piirangute tõttu.');
+                            window.location.href = 'recipe-details.html?id=' + recipe.id;
+                        } else {
+                            alert('Retsepti ei saanud salvestada mäluruumi piirangute tõttu. Proovi kustutada mõned vanad retseptid.');
+                        }
+                    }
+                }
+            } else {
+                alert('Viga retsepti salvestamisel: ' + saveResult.message);
+            }
+            
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Salvesta Retsept';
+            }
+        }
+    } catch (error) {
+        console.error('Error saving recipe:', error);
+        alert('Viga retsepti salvestamisel: ' + error.message);
+        
+        const saveBtn = document.querySelector('button[type="submit"]');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Salvesta Retsept';
+        }
+    }
+}
+
+// Delete a recipe
+function deleteRecipe(recipeId) {
+    loadRecipes();
+    recipes = recipes.filter(recipe => recipe.id !== recipeId);
+    saveRecipes();
 }
 
 // Home page event setup
@@ -398,417 +739,6 @@ function setupAddRecipeEvents() {
     }
 }
 
-// Resize and compress an image
-function resizeAndCompressImage(imageUrl, callback) {
-    const img = new Image();
-    img.onload = function() {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        
-        // Calculate new dimensions while maintaining aspect ratio
-        const aspectRatio = width / height;
-        
-        // More aggressive resizing for larger images
-        if (width > MAX_IMAGE_WIDTH || height > MAX_IMAGE_HEIGHT) {
-            if (aspectRatio > 1) {
-                width = MAX_IMAGE_WIDTH;
-                height = Math.round(width / aspectRatio);
-            } else {
-                height = MAX_IMAGE_HEIGHT;
-                width = Math.round(height * aspectRatio);
-            }
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        const ctx = canvas.getContext('2d');
-        // Use better image smoothing
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // Try progressive compression until size is acceptable
-        let quality = IMAGE_QUALITY;
-        let compressedImageUrl;
-        
-        do {
-            compressedImageUrl = canvas.toDataURL('image/jpeg', quality);
-            // If still too large, reduce quality further
-            quality *= 0.8;
-        } while (compressedImageUrl.length > MAX_FILE_SIZE && quality > 0.1);
-        
-        if (compressedImageUrl.length > MAX_FILE_SIZE) {
-            callback(null, 'Image too large even after compression');
-        } else {
-            callback(compressedImageUrl);
-        }
-    };
-    
-    img.onerror = function() {
-        console.error('Error loading image for compression');
-        callback(null, 'Error loading image');
-    };
-    
-    img.src = imageUrl;
-}
-
-// Handle image uploads
-function handleImageUpload(e) {
-    const files = e.target.files;
-    const imagePreviewArea = document.getElementById('imagePreviewArea');
-    
-    if (!files || files.length === 0) return;
-    
-    // Check if adding these would exceed the max
-    const currentImages = imagePreviewArea.querySelectorAll('.image-preview').length;
-    if (currentImages + files.length > MAX_IMAGES_PER_RECIPE) {
-        alert(`You can only add a maximum of ${MAX_IMAGES_PER_RECIPE} images per recipe. Please select fewer images.`);
-        return;
-    }
-    
-    // Clear upload instruction if present
-    const uploadInstruction = imagePreviewArea.querySelector('.upload-instruction');
-    if (uploadInstruction) {
-        uploadInstruction.remove();
-    }
-    
-    // Show loading indicator
-    const loadingEl = document.createElement('div');
-    loadingEl.classList.add('upload-loading');
-    loadingEl.innerHTML = 'Processing images...';
-    imagePreviewArea.appendChild(loadingEl);
-    
-    // Number of processed files
-    let processedFiles = 0;
-    let errorCount = 0;
-    
-    // Process each selected file
-    Array.from(files).forEach(file => {
-        // Check initial file size
-        if (file.size > MAX_FILE_SIZE * 2) { // Allow for twice the final size initially
-            alert(`Image too large (max ${Math.round(MAX_FILE_SIZE/1024/1024)}MB): ${file.name}`);
-            processedFiles++;
-            errorCount++;
-            if (processedFiles === files.length) {
-                loadingEl.remove();
-                if (errorCount === files.length) {
-                    imagePreviewArea.innerHTML = `
-                        <p class="upload-instruction">Tap to add photos</p>
-                    `;
-                }
-            }
-            return;
-        }
-        
-        const reader = new FileReader();
-        
-        reader.onload = function(event) {
-            const imageUrl = event.target.result;
-            
-            // Check if the image preview area still exists
-            const currentImagePreviewArea = document.getElementById('imagePreviewArea');
-            if (!currentImagePreviewArea) return;
-            
-            // Resize and compress the image
-            resizeAndCompressImage(imageUrl, function(compressedImageUrl, error) {
-                if (error || !compressedImageUrl) {
-                    alert(`Error processing image ${file.name}: ${error || 'Unknown error'}`);
-                    errorCount++;
-                } else {
-                    // Create preview element
-                    const previewElement = document.createElement('div');
-                    previewElement.classList.add('image-preview');
-                    previewElement.innerHTML = `
-                        <img src="${compressedImageUrl}" alt="Recipe image preview">
-                        <div class="remove-image">
-                            <i class="fas fa-times"></i>
-                        </div>
-                    `;
-                    
-                    currentImagePreviewArea.appendChild(previewElement);
-                    
-                    // Add remove functionality
-                    const removeBtn = previewElement.querySelector('.remove-image');
-                    if (removeBtn) {
-                        removeBtn.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            previewElement.remove();
-                            
-                            // If no previews left, add back the upload instruction
-                            if (currentImagePreviewArea.querySelectorAll('.image-preview').length === 0) {
-                                currentImagePreviewArea.innerHTML = `
-                                    <p class="upload-instruction">Tap to add photos</p>
-                                `;
-                            }
-                        });
-                    }
-                }
-                
-                // Count processed files and remove loading indicator when done
-                processedFiles++;
-                if (processedFiles === files.length) {
-                    const loadingElement = currentImagePreviewArea.querySelector('.upload-loading');
-                    if (loadingElement) loadingElement.remove();
-                    
-                    // If all files failed, show upload instruction again
-                    if (errorCount === files.length) {
-                        currentImagePreviewArea.innerHTML = `
-                            <p class="upload-instruction">Tap to add photos</p>
-                        `;
-                    }
-                }
-            });
-        };
-        
-        reader.onerror = function() {
-            console.error('Error reading file', file.name);
-            errorCount++;
-            processedFiles++;
-            if (processedFiles === files.length) {
-                loadingEl.remove();
-                if (errorCount === files.length) {
-                    imagePreviewArea.innerHTML = `
-                        <p class="upload-instruction">Tap to add photos</p>
-                    `;
-                }
-            }
-        };
-        
-        reader.readAsDataURL(file);
-    });
-}
-
-// Save a new recipe or update existing one
-function saveRecipe() {
-    try {
-        const saveBtn = document.querySelector('button[type="submit"]');
-        if (saveBtn) {
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving...';
-        }
-        
-        const recipeId = new URLSearchParams(window.location.search).get('edit');
-        const title = document.getElementById('recipeTitle').value.trim();
-        const date = document.getElementById('recipeDate').value;
-        const rating = parseInt(document.getElementById('recipeRating').value) || 0;
-        const instructions = document.getElementById('recipeInstructions').value.trim();
-        const notes = document.getElementById('recipeNotes').value.trim();
-        
-        // Validation
-        if (!title) {
-            alert('Please enter a recipe title');
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Save Recipe';
-            }
-            return;
-        }
-        
-        if (!date) {
-            alert('Please select a date');
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Save Recipe';
-            }
-            return;
-        }
-        
-        if (!instructions) {
-            alert('Please enter recipe instructions');
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Save Recipe';
-            }
-            return;
-        }
-        
-        // Get all preview images
-        const imagePreviews = document.querySelectorAll('.image-preview img');
-        const images = Array.from(imagePreviews).map(img => img.src);
-        
-        // Create or update recipe object
-        const recipe = {
-            id: recipeId || Date.now().toString(),
-            title,
-            date,
-            rating,
-            instructions,
-            notes,
-            images,
-            created: recipeId ? (recipes.find(r => r.id === recipeId)?.created || new Date().toISOString()) : new Date().toISOString(),
-            modified: new Date().toISOString()
-        };
-        
-        loadRecipes();
-        
-        if (recipeId) {
-            // Update existing recipe
-            const index = recipes.findIndex(r => r.id === recipeId);
-            if (index !== -1) {
-                recipes[index] = recipe;
-            } else {
-                recipes.push(recipe); // Fallback if recipe not found
-            }
-        } else {
-            // Add new recipe
-            recipes.push(recipe);
-        }
-        
-        const saveResult = saveRecipes();
-        
-        if (saveResult.success) {
-            // Redirect to the recipe details page
-            window.location.href = 'recipe-details.html?id=' + recipe.id;
-        } else {
-            // Handle specific storage quota exceeded error
-            if (saveResult.error === 'storage_full') {
-                const confirmDownsize = confirm(
-                    'Mäluruum on täis. Kas soovid salvestada vähemate piltidega? ' +
-                    'Ainult esimene pilt säilitatakse.'
-                );
-                
-                if (confirmDownsize) {
-                    // Keep only the first image
-                    recipe.images = images.length > 0 ? [images[0]] : [];
-                    
-                    // Try again with only one image
-                    if (recipeId) {
-                        const index = recipes.findIndex(r => r.id === recipeId);
-                        if (index !== -1) {
-                            recipes[index] = recipe;
-                        } else {
-                            recipes.push(recipe);
-                        }
-                    } else {
-                        recipes.push(recipe);
-                    }
-                    
-                    const retryResult = saveRecipes();
-                    
-                    if (retryResult.success) {
-                        window.location.href = 'recipe-details.html?id=' + recipe.id;
-                        return;
-                    } else {
-                        // Still failed, try with no images
-                        recipe.images = [];
-                        
-                        if (recipeId) {
-                            const index = recipes.findIndex(r => r.id === recipeId);
-                            if (index !== -1) {
-                                recipes[index] = recipe;
-                            } else {
-                                recipes.push(recipe);
-                            }
-                        } else {
-                            recipes.push(recipe);
-                        }
-                        
-                        const finalAttempt = saveRecipes();
-                        
-                        if (finalAttempt.success) {
-                            alert('Retsept salvestati ilma piltideta mäluruumi piirangute tõttu.');
-                            window.location.href = 'recipe-details.html?id=' + recipe.id;
-                            return;
-                        } else {
-                            alert('Retsepti ei saanud salvestada mäluruumi piirangute tõttu. Proovi kustutada mõned vanad retseptid.');
-                        }
-                    }
-                }
-            } else {
-                alert('Viga retsepti salvestamisel: ' + saveResult.message);
-            }
-            
-            // Re-enable the save button
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Save Recipe';
-            }
-        }
-    } catch (error) {
-        console.error('Error saving recipe:', error);
-        alert('Error saving recipe: ' + error.message);
-        
-        // Re-enable the save button
-        const saveBtn = document.querySelector('button[type="submit"]');
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.textContent = 'Save Recipe';
-        }
-    }
-}
-
-// Pre-fill form for editing
-function fillFormForEditing(recipeId) {
-    loadRecipes();
-    const recipe = recipes.find(r => r.id === recipeId);
-    
-    if (!recipe) {
-        window.location.href = 'index.html';
-        return;
-    }
-    
-    // Update page title
-    document.querySelector('h2').textContent = 'Edit Recipe';
-    
-    // Fill form fields
-    document.getElementById('recipeTitle').value = recipe.title || '';
-    document.getElementById('recipeDate').value = recipe.date || '';
-    document.getElementById('recipeRating').value = recipe.rating || 0;
-    document.getElementById('recipeInstructions').value = recipe.instructions || '';
-    document.getElementById('recipeNotes').value = recipe.notes || '';
-    
-    // Update star display
-    const stars = document.querySelectorAll('.star-rating i');
-    stars.forEach(star => {
-        const starRating = parseInt(star.dataset.rating);
-        if (starRating <= recipe.rating) {
-            star.classList.remove('far');
-            star.classList.add('fas');
-        }
-    });
-    
-    // Display images
-    const imagePreviewArea = document.getElementById('imagePreviewArea');
-    if (imagePreviewArea) {
-        imagePreviewArea.innerHTML = '';
-        
-        if (recipe.images && recipe.images.length > 0) {
-            recipe.images.forEach(imageUrl => {
-                const previewElement = document.createElement('div');
-                previewElement.classList.add('image-preview');
-                previewElement.innerHTML = `
-                    <img src="${imageUrl}" alt="Recipe image preview">
-                    <div class="remove-image">
-                        <i class="fas fa-times"></i>
-                    </div>
-                `;
-                
-                imagePreviewArea.appendChild(previewElement);
-                
-                // Add remove functionality
-                const removeBtn = previewElement.querySelector('.remove-image');
-                removeBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    previewElement.remove();
-                    
-                    // If no previews left, add back the upload instruction
-                    if (imagePreviewArea.querySelectorAll('.image-preview').length === 0) {
-                        imagePreviewArea.innerHTML = `
-                            <p class="upload-instruction">Tap to add photos</p>
-                        `;
-                    }
-                });
-            });
-        } else {
-            imagePreviewArea.innerHTML = `
-                <p class="upload-instruction">Tap to add photos</p>
-            `;
-        }
-    }
-}
-
 // Display recipe details
 function displayRecipeDetails(recipeId) {
     loadRecipes();
@@ -908,13 +838,6 @@ function setupRecipeDetailsEvents(recipeId) {
     });
 }
 
-// Delete a recipe
-function deleteRecipe(recipeId) {
-    loadRecipes();
-    recipes = recipes.filter(recipe => recipe.id !== recipeId);
-    saveRecipes();
-}
-
 // Helper function to generate star rating HTML
 function generateStarRating(rating) {
     let stars = '';
@@ -974,30 +897,6 @@ function setupAutoSave() {
             saveRecipeAsDraft();
         }
     });
-}
-
-// Add this new function for saving drafts
-function saveRecipeAsDraft() {
-    try {
-        const recipeId = new URLSearchParams(window.location.search).get('edit');
-        const formData = {
-            id: recipeId || 'draft_' + Date.now().toString(),
-            title: document.getElementById('recipeTitle').value.trim(),
-            date: document.getElementById('recipeDate').value,
-            rating: parseInt(document.getElementById('recipeRating').value) || 0,
-            instructions: document.getElementById('recipeInstructions').value.trim(),
-            notes: document.getElementById('recipeNotes').value.trim(),
-            images: Array.from(document.querySelectorAll('.image-preview img')).map(img => img.src),
-            isDraft: true,
-            lastModified: new Date().toISOString()
-        };
-
-        localStorage.setItem('recipe_draft', JSON.stringify(formData));
-        return { success: true };
-    } catch (error) {
-        console.error('Error saving draft:', error);
-        return { success: false, error: error.message };
-    }
 }
 
 // Add cleanup for auto-save when leaving the page
