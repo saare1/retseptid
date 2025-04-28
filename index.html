@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Home Cooking Journal</title>
+    <title>Retseptiraamat</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,36 +12,36 @@
 <body>
     <header>
         <div class="container">
-            <h1 class="site-title">Home Cooking Journal</h1>
-            <p class="site-description">Documenting delicious moments from my kitchen</p>
+            <h1 class="site-title">Retseptiraamat</h1>
+            <p class="site-description">Minu retseptid</p>
         </div>
     </header>
 
     <main class="container">
         <section class="welcome-section">
-            <h2>Welcome to My Cooking Journal</h2>
-            <p>This is where I document all my culinary adventures and recipes. Each entry captures the joy, challenges, and flavors of home cooking. Browse through my recipes or add a new one to start building this delicious collection.</p>
+            <h2>Siin on minu retseptiraamat</h2>
+            <p>Siin ma panen kirja oma retsepte.</p>
             <div class="cta-buttons">
-                <a href="#recipes" class="btn primary-btn">View Recipes</a>
-                <a href="add-recipe.html" class="btn secondary-btn">Add New Recipe</a>
+                <a href="#recipes" class="btn primary-btn">Vaata retsepte</a>
+                <a href="add-recipe.html" class="btn secondary-btn">Lisa uus retsept</a>
             </div>
         </section>
 
         <section id="recipes" class="recipes-section">
-            <h2>My Recipes</h2>
+            <h2>Minu retseptid</h2>
             <div class="recipe-filter">
-                <input type="text" id="searchBox" placeholder="Search recipes..." autocomplete="off">
+                <input type="text" id="searchBox" placeholder="Otsi retsepte..." autocomplete="off">
                 <select id="sortOptions">
-                    <option value="date-desc">Newest First</option>
-                    <option value="date-asc">Oldest First</option>
-                    <option value="rating-desc">Highest Rated</option>
-                    <option value="rating-asc">Lowest Rated</option>
+                    <option value="date-desc">Uuemad enne</option>
+                    <option value="date-asc">Vanemad enne</option>
+                    <option value="rating-desc">Kõrgeima reitinguga</option>
+                    <option value="rating-asc">Madalama reitinguga</option>
                 </select>
             </div>
             <div id="recipesList" class="recipes-grid">
                 <!-- Recipe entries will be loaded here dynamically -->
                 <div class="recipe-card empty-state">
-                    <p>No recipes added yet. Click "Add New Recipe" to create your first entry!</p>
+                    <p>Retsepte pole veel lisatud. Esimese sissekande loomiseks klõpsake "Lisa uus retsept"!</p>
                 </div>
             </div>
             <div class="pagination" id="pagination">
@@ -52,7 +52,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; <span id="current-year"></span> Home Cooking Journal</p>
+            <p>&copy; <span id="current-year"></span> Retseptiraamat</p>
         </div>
     </footer>
 
